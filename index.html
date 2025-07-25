@@ -1,0 +1,509 @@
+  <!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Pembayaran Kelas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: #fff;
+            min-height: 100vh;
+        }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .checkbox-container {
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .custom-checkbox {
+            position: relative;
+            height: 24px;
+            width: 24px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .custom-checkbox::after {
+            content: '';
+            position: absolute;
+            display: none;
+            width: 6px;
+            height: 12px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+        
+        input:checked ~ .custom-checkbox {
+            background: #4f46e5;
+            border-color: #4f46e5;
+        }
+        
+        input:checked ~ .custom-checkbox::after {
+            display: block;
+        }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .status-lunas {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+        
+        .status-belum {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+        
+        table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        
+        th, td {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        th {
+            background: rgba(255, 255, 255, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        
+        .glow {
+            box-shadow: 0 0 15px rgba(79, 70, 229, 0.5);
+        }
+        
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+        
+        .summary-card {
+            transition: all 0.3s ease;
+        }
+        
+        .summary-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        .chart-wrapper {
+            transition: all 0.3s ease;
+        }
+        
+        .chart-wrapper:hover {
+            transform: scale(1.02);
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="glass p-6 mb-8 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500">
+                    Sistem Pembayaran Kelas
+                </h1>
+                <p class="text-gray-300 mt-1">Bendahara Kelas - Tahun 2025</p>
+            </div>
+            
+            <div class="flex flex-col md:flex-row gap-4 md:gap-8">
+                <div class="glass p-4 text-center summary-card">
+                    <p class="text-xs text-gray-400">Total Terkumpul</p>
+                    <h2 class="text-xl font-bold text-green-400" id="totalTerkumpul">Rp 0</h2>
+                </div>
+                <div class="glass p-4 text-center summary-card">
+                    <p class="text-xs text-gray-400">Total Tunggakan</p>
+                    <h2 class="text-xl font-bold text-red-400" id="totalTunggakan">Rp 0</h2>
+                </div>
+            </div>
+        </div>
+        
+        
+        <div class="glass p-6 overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr>
+                        <th class="py-3 px-4 text-left">No.</th>
+                        <th class="py-3 px-4 text-left">Nama</th>
+                        <th class="py-3 px-4 text-center">Jurnal<br><span class="text-xs text-gray-400">Rp 5.000</span></th>
+                        <th class="py-3 px-4 text-center">BET Kelas<br><span class="text-xs text-gray-400">Rp 10.000</span></th>
+                        <th class="py-3 px-4 text-right">Total Bayar</th>
+                        <th class="py-3 px-4 text-right">Tunggakan</th>
+                        <th class="py-3 px-4 text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- Data will be inserted here by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Footer -->
+        <div class="mt-8 text-center text-gray-400 text-sm">
+            <p>© 2023 Sistem Pembayaran Kelas</p>
+        </div>
+    </div>
+
+    <script>
+        // Data siswa
+        const siswa = [
+            { id: 1, nama: "ZIDAN" },
+            { id: 2, nama: "ALVIN" },
+            { id: 3, nama: "ALYA" },
+            { id: 4, nama: "REZA" },
+            { id: 5, nama: "Sayang🤞🏻" },
+            { id: 6, nama: "ANIS" },
+            { id: 7, nama: "AZKA" },
+            { id: 8, nama: "ARYA" },
+            { id: 9, nama: "REGAN" },
+            { id: 10, nama: "AZRIEL" },
+            { id: 11, nama: "BINTANG" },
+            { id: 12, nama: "DIMAS" },
+            { id: 13, nama: "EVAN" },
+            { id: 14, nama: "EGA" },
+            { id: 15, nama: "GILANG" },
+            { id: 16, nama: "BILA" },
+            { id: 17, nama: "ALAM" },
+            { id: 18, nama: "ABI" },
+            { id: 19, nama: "DAVIN" },
+            { id: 20, nama: "MUMTAZ" },
+            { id: 21, nama: "VENO" },
+            { id: 22, nama: "YUSUF" },
+            { id: 23, nama: "NAILA" },
+            { id: 24, nama: "FAREL" },
+            { id: 25, nama: "NAZA" },
+            { id: 26, nama: "RAMA" },
+            { id: 27, nama: "NICO" },
+            { id: 28, nama: "RAFFA" },
+            { id: 29, nama: "RAFIF" },
+            { id: 30, nama: "REPI" },
+            { id: 31, nama: "DAVID" },
+            { id: 32, nama: "LILI" },
+            { id: 33, nama: "SHOLEH" },
+            { id: 34, nama: "FAZA" },
+            { id: 35, nama: "DHANA" },
+            { id: 36, nama: "FIRDAUS" }
+        ];
+
+        // Harga pembayaran
+        const hargaJurnal = 5000;
+        const hargaBet = 10000;
+        const totalPerSiswa = hargaJurnal + hargaBet;
+
+        // Status pembayaran (default: belum bayar)
+        let pembayaran = {};
+        siswa.forEach(s => {
+            pembayaran[s.id] = { jurnal: false, bet: false };
+        });
+
+        // Fungsi untuk memformat angka ke format rupiah
+        function formatRupiah(angka) {
+            return "Rp " + angka.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+
+        // Fungsi untuk mengupdate tabel
+        function updateTable() {
+            const tableBody = document.getElementById('tableBody');
+            tableBody.innerHTML = '';
+            
+            siswa.forEach(s => {
+                const row = document.createElement('tr');
+                
+                // Hitung total bayar dan tunggakan
+                const bayarJurnal = pembayaran[s.id].jurnal ? hargaJurnal : 0;
+                const bayarBet = pembayaran[s.id].bet ? hargaBet : 0;
+                const totalBayar = bayarJurnal + bayarBet;
+                const tunggakan = totalPerSiswa - totalBayar;
+                const status = tunggakan === 0 ? 'Lunas' : 'Belum Lunas';
+                
+                row.innerHTML = `
+                    <td class="py-3 px-4">${s.id}</td>
+                    <td class="py-3 px-4 font-medium">${s.nama}</td>
+                    <td class="py-3 px-4 text-center">
+                        <label class="checkbox-container">
+                            <input type="checkbox" class="sr-only" data-siswa="${s.id}" data-jenis="jurnal" ${pembayaran[s.id].jurnal ? 'checked' : ''}>
+                            <div class="custom-checkbox"></div>
+                        </label>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <label class="checkbox-container">
+                            <input type="checkbox" class="sr-only" data-siswa="${s.id}" data-jenis="bet" ${pembayaran[s.id].bet ? 'checked' : ''}>
+                            <div class="custom-checkbox"></div>
+                        </label>
+                    </td>
+                    <td class="py-3 px-4 text-right font-medium ${totalBayar > 0 ? 'text-green-400' : ''}">${formatRupiah(totalBayar)}</td>
+                    <td class="py-3 px-4 text-right font-medium ${tunggakan > 0 ? 'text-red-400' : ''}">${formatRupiah(tunggakan)}</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="status-badge ${status === 'Lunas' ? 'status-lunas' : 'status-belum'}">${status}</span>
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+            
+            // Tambahkan event listener untuk checkbox
+            document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const siswaId = parseInt(this.dataset.siswa);
+                    const jenis = this.dataset.jenis;
+                    pembayaran[siswaId][jenis] = this.checked;
+                    updateTable();
+                    updateSummary();
+                    updateCharts();
+                });
+            });
+            
+            updateSummary();
+            updateCharts();
+        }
+        
+        // Fungsi untuk mengupdate ringkasan
+        function updateSummary() {
+            let totalTerkumpul = 0;
+            let totalTunggakan = 0;
+            
+            siswa.forEach(s => {
+                const bayarJurnal = pembayaran[s.id].jurnal ? hargaJurnal : 0;
+                const bayarBet = pembayaran[s.id].bet ? hargaBet : 0;
+                const totalBayar = bayarJurnal + bayarBet;
+                const tunggakan = totalPerSiswa - totalBayar;
+                
+                totalTerkumpul += totalBayar;
+                totalTunggakan += tunggakan;
+            });
+            
+            document.getElementById('totalTerkumpul').textContent = formatRupiah(totalTerkumpul);
+            document.getElementById('totalTunggakan').textContent = formatRupiah(totalTunggakan);
+        }
+        
+        // Fungsi untuk mengupdate chart
+        function updateCharts() {
+            // Data untuk chart
+            let jurnalBayar = 0;
+            let jurnalBelum = 0;
+            let betBayar = 0;
+            let betBelum = 0;
+            let siswaLunas = 0;
+            let siswaBelumLunas = 0;
+            
+            siswa.forEach(s => {
+                if (pembayaran[s.id].jurnal) jurnalBayar++;
+                else jurnalBelum++;
+                
+                if (pembayaran[s.id].bet) betBayar++;
+                else betBelum++;
+                
+                const bayarJurnal = pembayaran[s.id].jurnal ? hargaJurnal : 0;
+                const bayarBet = pembayaran[s.id].bet ? hargaBet : 0;
+                const totalBayar = bayarJurnal + bayarBet;
+                const tunggakan = totalPerSiswa - totalBayar;
+                
+                if (tunggakan === 0) siswaLunas++;
+                else siswaBelumLunas++;
+            });
+            
+            // Pie Chart
+            if (window.pieChart) window.pieChart.destroy();
+            const pieCtx = document.getElementById('pieChart').getContext('2d');
+            window.pieChart = new Chart(pieCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Lunas', 'Belum Lunas'],
+                    datasets: [{
+                        data: [siswaLunas, siswaBelumLunas],
+                        backgroundColor: [
+                            'rgba(16, 185, 129, 0.7)',
+                            'rgba(239, 68, 68, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(16, 185, 129, 1)',
+                            'rgba(239, 68, 68, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: 'white',
+                                font: {
+                                    family: 'Poppins'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = Math.round((value / total) * 100);
+                                    return `${label}: ${value} siswa (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '70%',
+                    animation: {
+                        animateScale: true,
+                        animateRotate: true
+                    }
+                }
+            });
+            
+            // Bar Chart
+            if (window.barChart) window.barChart.destroy();
+            const barCtx = document.getElementById('barChart').getContext('2d');
+            window.barChart = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Jurnal (Rp 5.000)', 'BET Kelas (Rp 10.000)'],
+                    datasets: [
+                        {
+                            label: 'Sudah Bayar',
+                            data: [jurnalBayar, betBayar],
+                            backgroundColor: 'rgba(79, 70, 229, 0.7)',
+                            borderColor: 'rgba(79, 70, 229, 1)',
+                            borderWidth: 1,
+                            borderRadius: 6
+                        },
+                        {
+                            label: 'Belum Bayar',
+                            data: [jurnalBelum, betBelum],
+                            backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                            borderColor: 'rgba(239, 68, 68, 1)',
+                            borderWidth: 1,
+                            borderRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.7)',
+                                font: {
+                                    family: 'Poppins'
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.7)',
+                                font: {
+                                    family: 'Poppins'
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: 'white',
+                                font: {
+                                    family: 'Poppins'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.dataset.label || '';
+                                    const value = context.raw || 0;
+                                    return `${label}: ${value} siswa`;
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        delay: function(context) {
+                            return context.dataIndex * 100;
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Inisialisasi tabel dan chart
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTable();
+            
+            // Tambahkan efek hover pada baris tabel
+            const tableRows = document.querySelectorAll('tbody tr');
+            tableRows.forEach(row => {
+                row.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateX(5px)';
+                    this.style.transition = 'transform 0.3s ease';
+                });
+                
+                row.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateX(0)';
+                });
+            });
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'964a9f64b21c4b6d',t:'MTc1MzQzNTY1OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
